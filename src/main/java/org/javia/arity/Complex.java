@@ -16,7 +16,9 @@
 
 package org.javia.arity;
 
-/** 
+import java.math.BigDecimal;
+
+/**
     A complex value, composed of the real part (re) and the imaginary part (im).
 
     All the methods that return a Complex (such as add(), mul(), etc)
@@ -137,7 +139,13 @@ public class Complex {
     */
     public final Complex add(Complex o) {
         final double ulp = Math.ulp(re);
-        re += o.re;
+        try {
+            BigDecimal result = BigDecimal.valueOf(re).add(BigDecimal.valueOf(o.re));
+            re = result.doubleValue();
+        } catch (NumberFormatException e) {
+            re += o.re;
+        }
+//        re += o.re;
         im += o.im;
         // hack for "1.1-1-.1"
         if (Math.abs(re) < ulp * 1024) {
@@ -150,7 +158,14 @@ public class Complex {
      */
     public final Complex sub(Complex o) {
         final double ulp = Math.ulp(re);
-        re -= o.re;
+        try {
+            BigDecimal result = BigDecimal.valueOf(re).subtract(BigDecimal.valueOf(o.re));
+            re = result.doubleValue();
+        } catch (NumberFormatException e) {
+//            e.printStackTrace();
+            re -= o.re;
+        }
+//        re -= o.re;
         im -= o.im;
         // hack for "1.1-1-.1"
         if (Math.abs(re) < ulp * 1024) {
@@ -165,9 +180,7 @@ public class Complex {
         return this;
     }
 
-    /** Multiplication.
-     */
-    public final Complex mul(Complex o) {
+    private final Complex finalMul(Complex o) {
         double a = re, b = im, c = o.re, d = o.im;
         if (b == 0 && d == 0) {
             return set(a * c, 0);
@@ -219,6 +232,67 @@ public class Complex {
             return set(-b*d, a*d);
         }
         return set(mre, mim);
+    }
+
+    /** Multiplication.
+     */
+    public final Complex mul(Complex o) {
+        try {
+            BigDecimal a = BigDecimal.valueOf(re), b = BigDecimal.valueOf(im), c = BigDecimal.valueOf(o.re), d = BigDecimal.valueOf(o.im);
+            if (b.doubleValue() == 0 && d.doubleValue() == 0) {
+                return set(a.multiply(c).doubleValue(), 0);
+            }
+
+            final double mre = (a.multiply(c).subtract(b.multiply(d))).doubleValue();
+//        final double mim = a * d + b * c;
+            final double mim = (a.multiply(d)).add(b.multiply(c)).doubleValue();
+
+            if (!set(mre, mim).isNaN()) {
+                return this;
+            }
+
+            if (set(a.doubleValue(), b.doubleValue()).isInfinite()) {
+                normalizeInfinity();
+                a = BigDecimal.valueOf(re);
+                b = BigDecimal.valueOf(im);
+            }
+
+            if (o.isInfinite()) {
+                set(c.doubleValue(), d.doubleValue()).normalizeInfinity();
+                c = BigDecimal.valueOf(re);
+                d = BigDecimal.valueOf(im);
+            }
+
+            if (b.doubleValue() == 0) {
+                if (d.doubleValue() == 0) {
+                    return set(a.multiply(c).doubleValue(), 0);
+                }
+                if (c.doubleValue() == 0) {
+                    return set(0, a.multiply(d).doubleValue());
+                }
+                return set(a.multiply(c).doubleValue(), a.multiply(d).doubleValue());
+            }
+
+            if (a.doubleValue() == 0) {
+                if (c.doubleValue() == 0) {
+                    return set(-b.multiply(d).doubleValue(), 0);
+                }
+                if (d.doubleValue() == 0) {
+                    return set(0, b.multiply(c).doubleValue());
+                }
+                return set(-b.multiply(d).doubleValue(), b.multiply(c).doubleValue());
+            }
+
+            if (d.doubleValue() == 0) {
+                return set(a.multiply(c).doubleValue(), b.multiply(c).doubleValue());
+            }
+            if (c.doubleValue() == 0) {
+                return set(-b.multiply(d).doubleValue(), a.multiply(d).doubleValue());
+            }
+            return set(mre, mim);
+        } catch (Exception e) {
+            return finalMul(o);
+        }
     }
 
     /** Division.

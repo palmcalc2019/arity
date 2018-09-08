@@ -16,6 +16,7 @@
 
 package org.javia.arity;
 
+import java.math.BigDecimal;
 import java.util.Random;
 
 /**
@@ -176,6 +177,8 @@ public class CompiledFunction extends ContextFunction {
         
         int codeLen = code.length;
         int percentPC = -2;
+        //几个百分号
+        int percentCount = 0;
         for (int pc = 0; pc < codeLen; ++pc) {
             final int opcode = code[pc];
             switch (opcode) {
@@ -221,39 +224,115 @@ public class CompiledFunction extends ContextFunction {
             case VM.RND: s[++p] = random.nextDouble(); break;
                     
             case VM.ADD: {
-                final double a = s[--p];
-                double res = a + (percentPC == pc-1 ? s[p] * s[p+1] : s[p+1]);
-                if (Math.abs(res) < Math.ulp(a) * 1024) {
-                    // hack for "1.1-1-.1"
-                    res = 0;
+//                Complex b = s[p+1];
+//                if (percentPC == pc-1) {
+//                    if (percentCount <= 1) {
+//                        s[p + 1].mul(s[p]);
+//                    } else {
+//                        b = s[p];
+//                    }
+//                } else {
+//                    b = s[p+1];
+//                }
+//                s[--p].add(b);
+                try {
+                    final BigDecimal a = BigDecimal.valueOf(s[--p]);
+
+                    BigDecimal b = BigDecimal.valueOf(s[p + 1]);
+                    if (percentPC == pc-1) {
+//                    if (percentCount <=1) {
+//                        b = BigDecimal.valueOf(s[p]).multiply(BigDecimal.valueOf(s[p + 1]));
+//                    } else {
+//                        b = BigDecimal.valueOf(s[p + 1]);
+//                    }
+                    }
+                    double res = a.add(b).doubleValue();
+                    if (Math.abs(res) < Math.ulp(a.doubleValue()) * 1024) {
+                        // hack for "1.1-1-.1"
+                        res = 0;
+                    }
+                    s[p] = res;
+                } catch (Exception e) {
+                    final double a = s[--p];
+                    double res = a + (percentPC == pc-1 ? s[p] * s[p+1] : s[p+1]);
+                    if (Math.abs(res) < Math.ulp(a) * 1024) {
+                        // hack for "1.1-1-.1"
+                        res = 0;
+                    }
+                    s[p] = res;
                 }
-                s[p] = res;
+
                 break;
             }
 
-            case VM.SUB: { 
-                final double a = s[--p];
-                double res = a - (percentPC == pc-1 ? s[p] * s[p+1] : s[p+1]);
-                if (Math.abs(res) < Math.ulp(a) * 1024) {
+            case VM.SUB: {
+                try {
+                    final BigDecimal a = BigDecimal.valueOf(s[--p]);
+//                    double res = a.subtract((percentPC == pc - 1 ? BigDecimal.valueOf(s[p]).multiply(BigDecimal.valueOf(s[p + 1])) : BigDecimal.valueOf(s[p + 1]))).doubleValue();
+                    BigDecimal b = BigDecimal.valueOf(s[p + 1]);
+                    if (percentPC == pc-1) {
+//                    if (percentCount <=1) {
+//                        b = BigDecimal.valueOf(s[p]).multiply(BigDecimal.valueOf(s[p + 1]));
+//                    } else {
+//                        b = BigDecimal.valueOf(s[p + 1]);
+//                    }
+                    }
+                    double res = a.subtract(b).doubleValue();
+//                if (Math.abs(res) < Math.ulp(a.doubleValue()) * 1024) {
                     // hack for "1.1-1-.1"
-                    res = 0;
+//                    res = 0;
+//                }
+                    s[p] = res;
+                } catch (Exception e) {
+                    final double a = s[--p];
+                    double res = a - (percentPC == pc-1 ? s[p] * s[p+1] : s[p+1]);
+                    if (Math.abs(res) < Math.ulp(a) * 1024) {
+                        // hack for "1.1-1-.1"
+                        res = 0;
+                    }
+                    s[p] = res;
                 }
-                s[p] = res;
                 break;
             }
 
-            case VM.MUL: s[--p] *= s[p+1]; break;
-            case VM.DIV: s[--p] /= s[p+1]; break;
-            case VM.MOD: s[--p] %= s[p+1]; break;
+            case VM.MUL: {
+                try {
+                    s[p - 1] = BigDecimal.valueOf(s[p - 1]).multiply(BigDecimal.valueOf(s[p])).doubleValue();
+                    --p;
+                } catch (Exception e) {
+                    s[--p] *= s[p+1];
+                }
+                break;
+            }
+            case VM.DIV: {
+//                s[--p] /= s[p + 1];
+                try {
+                    s[p - 1] = BigDecimal.valueOf(s[p-1]).divide(BigDecimal.valueOf(s[p])).doubleValue();
+                    --p;
+                } catch (Exception e) {
+                    s[--p] /= s[p + 1];
+                }
 
+                break;
+            }
+            case VM.MOD: {
+                s[--p] %= s[p+1];
+                break;
+            }
             case VM.POWER: {
+//                s[p - 1] = Math.pow(BigDecimal.valueOf(s[p]).doubleValue(), BigDecimal.valueOf(s[p + 1]).doubleValue());
                 s[--p] = Math.pow(s[p], s[p+1]);
                 break;
             }
                 
             case VM.UMIN: s[p] = -s[p]; break;
             case VM.FACT: s[p] = MoreMath.factorial(s[p]); break;       
-            case VM.PERCENT: s[p] = s[p] * .01; percentPC = pc; break;
+            case VM.PERCENT: {
+                s[p] = s[p] * .01;
+                percentPC = pc;
+                percentCount++;
+                break;
+            }
                 
             case VM.SIN:  s[p] = MoreMath.sin(s[p]); break;
             case VM.COS:  s[p] = MoreMath.cos(s[p]); break;
@@ -346,6 +425,7 @@ public class CompiledFunction extends ContextFunction {
         int funp = 0;
 
         int codeLen = code.length;
+        int percentCount = 0;
         // System.out.println("exec " + this);
         for (int pc = 0; pc < codeLen; ++pc) {
             final int opcode = code[pc];
@@ -393,8 +473,22 @@ public class CompiledFunction extends ContextFunction {
                 
             case VM.RND: s[++p].set(random.nextDouble(), 0); break;
                     
-            case VM.ADD: s[--p].add(percentPC == pc-1 ? s[p+1].mul(s[p]) : s[p+1]); break;
-            case VM.SUB: s[--p].sub(percentPC == pc-1 ? s[p+1].mul(s[p]) : s[p+1]); break;
+            case VM.ADD: {
+                Complex b = s[p+1];
+                if (percentPC == pc-1) {
+                    if (percentCount <= 1) {
+                        s[p + 1].mul(s[p]);
+                    } else {
+                        b = s[p];
+                    }
+                } else {
+                    b = s[p+1];
+                }
+                s[--p].add(b);
+            } break;
+            case VM.SUB: {
+                s[--p].sub(percentPC == pc-1 ? s[p+1].mul(s[p]) : s[p+1]);
+            } break;
             case VM.MUL:   s[--p].mul(s[p+1]); break;
             case VM.DIV:   s[--p].div(s[p+1]); break;
             case VM.MOD:   s[--p].mod(s[p+1]); break;
@@ -402,7 +496,12 @@ public class CompiledFunction extends ContextFunction {
                 
             case VM.UMIN: s[p].negate();    break;
             case VM.FACT: s[p].factorial(); break;                   
-            case VM.PERCENT: s[p].mul(.01); percentPC = pc; break;
+            case VM.PERCENT: {
+                s[p].mul(.01);
+                percentPC = pc;
+                percentCount++;
+                break;
+            }
                 
             case VM.SIN:   s[p].sin();   break;
             case VM.COS:   s[p].cos();   break;
