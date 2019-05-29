@@ -2,7 +2,7 @@
 
 `org.javia.arity` 'Arity' is an arithmetic engine for for Java, created by [Mihai Preda](https://github.com/preda) between 2003 and 2009.
 
-Originally a [Freshmeat project](http://freshmeat.sourceforge.net/projects/arity), the project was apparently moved to Google Code some time after 2008. There are no working links for this URL; apparently it was excluded from the Google Code archive.
+Originally a [Freshmeat project](http://freshmeat.sourceforge.net/projects/arity), the project was apparently moved to Google Code some time after 2008. There are no working links for the Google Code URL; apparently it was excluded from the Google Code archive.
 
 The code was imported from google code several times, by several different people. The most notable imports are:
 
