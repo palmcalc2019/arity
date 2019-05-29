@@ -15,6 +15,19 @@ This repo is based on [Cmdmac's](https://github.com/Cmdmac) [fork](https://githu
 
 It's for use in the PalmCalc 2019+ Android app, a revived version of Cybrosys's PalmCalc.
 
+Future & Maintenance
+-----
+
+I am a programmer, not a mathematician. I know about maintaining & updating build files, correcting logical errors in code. That sort of thing.
+
+**I don't know how to add mathsy features to this project!**.
+
+As such, no development work will be done to this code.
+Just build & maintenance stuff.
+
+I just need a guaranteed place to get this dependency from, for another legacy app.
+
+I do accept pull requests, though.
 
 TODO
 ----
